@@ -12,14 +12,13 @@ Servo servo;
 
 // Пины обвеса
 const int btn_in_pin = 12;
-const int btn_out_pin = 13;
-
-const int servo_pin = 14;
-
-const int rele_pin = 13;
+const int btn_out_pin = 14;
+const int rele_pin = 27;
+const int servo_pin = 13;
 
 // Таймер для двери
 uint32_t rele_timer = 0;
+bool rele_state = 0;
 
 // Таймер для сенсоров
 uint32_t btn_timer = 0;
@@ -39,8 +38,9 @@ void handleData() {
   }
   Serial.println("Door opened for " + name + " " + surname + ", status=" + status_enter);
   // Открываем дверь
-  digitalWrite(rele_pin, HIGH);
+  rele_state = 1;
   rele_timer = millis();
+  digitalWrite(rele_pin, HIGH);
 }
 
 void setup() {
@@ -49,6 +49,7 @@ void setup() {
 
   // Настраиваем пины обвеса
   pinMode(rele_pin, OUTPUT);
+  digitalWrite(rele_pin, LOW);
   pinMode(btn_in_pin, INPUT);
   pinMode(btn_out_pin, INPUT);
   pinMode(servo_pin, OUTPUT);
@@ -76,7 +77,8 @@ void setup() {
 void loop() {
   server.handleClient();
 
-  if (millis() - rele_timer >= 5000 && digitalRead(rele_pin)) {
+  if (millis() - rele_timer >= 5000 && rele_state) {
+    rele_state = 0;
     digitalWrite(rele_pin, LOW);
   }
   if (digitalRead(btn_in_pin) && millis() - btn_timer >= BTN_PERIOD) {
