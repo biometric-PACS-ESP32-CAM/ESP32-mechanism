@@ -5,6 +5,7 @@
 #include "wifi_config.h"
 
 #define BTN_PERIOD 2000
+#define RELE_PERIOD 5000
 
 WebServer server(80);
 
@@ -13,8 +14,8 @@ Servo servo;
 // Пины обвеса
 const int btn_in_pin = 12;
 const int btn_out_pin = 14;
-const int rele_pin = 27;
 const int servo_pin = 13;
+const int rele_pin = 27;
 
 // Таймер для двери
 uint32_t rele_timer = 0;
@@ -43,6 +44,11 @@ void handleData() {
   digitalWrite(rele_pin, HIGH);
 }
 
+// http://192.168.8.100
+IPAddress local_IP(192, 168, 8, 100);
+IPAddress gateway(192, 168, 8, 1);
+IPAddress subnet(255, 255, 0, 0);
+
 void setup() {
   Serial.begin(115200);
   Serial.println();
@@ -59,7 +65,12 @@ void setup() {
   ESP32PWM::allocateTimer(3);
   servo.setPeriodHertz(50);             //  standard 50 hz servo
   servo.attach(servo_pin, 500, 2400);   //  pin, min, max impulse
-  servo.write(0);                       //  set angle
+  servo.write(180);                     //  set angle
+
+  // Настраиваем статический IP-адрес:
+  if (!WiFi.config(local_IP, gateway, subnet)) {
+    Serial.println("STA Failed to configure");  //  "Не удалось задать статический IP-адрес"
+  }
 
   WiFi.persistent(false);
   WiFi.mode(WIFI_STA);
@@ -77,10 +88,11 @@ void setup() {
 void loop() {
   server.handleClient();
 
-  if (millis() - rele_timer >= 5000 && rele_state) {
+  if (millis() - rele_timer >= RELE_PERIOD && rele_state) {
     rele_state = 0;
     digitalWrite(rele_pin, LOW);
   }
+
   if (digitalRead(btn_in_pin) && millis() - btn_timer >= BTN_PERIOD) {
     btn_timer = millis();
     for (int pos = 0; pos <= 180; pos++) {
@@ -88,6 +100,7 @@ void loop() {
       delay(5);
     }
   }
+
   if (digitalRead(btn_out_pin) && millis() - btn_timer >= BTN_PERIOD) {
     btn_timer = millis();
     for (int pos = 180; pos >= 0; pos--) {
