@@ -5,7 +5,7 @@
 #include "wifi_config.h"
 
 #define BTN_PERIOD 2000
-#define RELE_PERIOD 5000
+#define RELE_PERIOD 2000
 
 WebServer server(80);
 
@@ -16,6 +16,9 @@ const int btn_in_pin = 12;
 const int btn_out_pin = 14;
 const int servo_pin = 13;
 const int rele_pin = 27;
+const int sens_pin = 26;
+//const int buz_pin = 25;
+const int led_pin = 33;
 
 // Таймер для двери
 uint32_t rele_timer = 0;
@@ -30,18 +33,22 @@ void handleData() {
   String name = server.arg("name"); 
   String surname = server.arg("surname");
   String status_enter = server.arg("status_enter");
-  if (status_enter == "out") {
-    status_enter = "in";
-    server.send(200, "text/plain", "in");
+  if (!digitalRead(sens_pin)) {
+    if (status_enter == "out") {
+      status_enter = "in";
+      server.send(200, "text/plain", "in");
+    } else {
+      status_enter = "out";
+      server.send(200, "text/plain", "out");
+    }
+    // Открываем дверь
+    digitalWrite(led_pin, LOW);
+    rele_state = 1;
+    rele_timer = millis();
+    digitalWrite(rele_pin, HIGH);
   } else {
-    status_enter = "out";
-    server.send(200, "text/plain", "out");
+    server.send(200, "text/plain", "door opened");
   }
-  Serial.println("Door opened for " + name + " " + surname + ", status=" + status_enter);
-  // Открываем дверь
-  rele_state = 1;
-  rele_timer = millis();
-  digitalWrite(rele_pin, HIGH);
 }
 
 void setup() {
@@ -53,6 +60,9 @@ void setup() {
   digitalWrite(rele_pin, LOW);
   pinMode(btn_in_pin, INPUT);
   pinMode(btn_out_pin, INPUT);
+  pinMode(sens_pin, INPUT);
+  pinMode(led_pin, OUTPUT);
+  digitalWrite(led_pin, HIGH);
   pinMode(servo_pin, OUTPUT);
   ESP32PWM::allocateTimer(0);
   ESP32PWM::allocateTimer(1);
@@ -77,6 +87,10 @@ void setup() {
 
 void loop() {
   server.handleClient();
+
+  if (!digitalRead(sens_pin)) {
+    digitalWrite(led_pin, HIGH);
+  }
 
   if (millis() - rele_timer >= RELE_PERIOD && rele_state) {
     rele_state = 0;
